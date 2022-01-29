@@ -213,7 +213,7 @@ new_local_repository(
 new_local_repository(
     name = "windows_opencv",
     build_file = "@//third_party:opencv_windows.BUILD",
-    path = "C:\\opencv\\build",
+    path = "../opencv-mediapipe/build",
 )
 
 http_archive(
@@ -222,6 +222,13 @@ http_archive(
     strip_prefix = "OpenCV-android-sdk",
     type = "zip",
     url = "https://github.com/opencv/opencv/releases/download/3.4.3/opencv-3.4.3-android-sdk.zip",
+)
+
+http_archive(
+    name = "windows_ort_dml",
+    build_file = "@//third_party:ort_dml_windows.BUILD",
+    type = "zip",
+    url = "https://github.com/microsoft/onnxruntime/releases/download/v1.10.0/Microsoft.ML.OnnxRuntime.DirectML.1.10.0.zip",
 )
 
 # After OpenCV 3.2.0, the pre-compiled opencv2.framework has google protobuf symbols, which will

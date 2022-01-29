@@ -57,6 +57,11 @@ message InferenceCalculatorOptions {
         ANY = 0;
         OPENGL = 1;
         OPENCL = 2;
+        // use tflite2tensorflow to convert the tflite model to onnx opset 12 first, 
+        // and change the model_path to point to the .onnx file.
+        // This api uses the DirectML EP for onnxruntime,
+        // and therefore it is required to be on windows 10 version 1709 or newer
+        ONNX = 3;
       }
       optional Api api = 4 [default = ANY];
 

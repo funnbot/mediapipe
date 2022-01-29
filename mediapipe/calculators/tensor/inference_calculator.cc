@@ -36,14 +36,22 @@ class InferenceCalculatorSelectorImpl
         Subgraph::GetOptions<mediapipe::InferenceCalculatorOptions>(
             subgraph_node);
     std::vector<absl::string_view> impls;
+
     const bool should_use_gpu =
         !options.has_delegate() ||  // Use GPU delegate if not specified
         (options.has_delegate() && options.delegate().has_gpu());
-    if (should_use_gpu) {
+    const bool should_use_onnx = 
+      options.has_delegate() && options.delegate().has_gpu() && options.delegate().gpu().has_api() &&
+      options.delegate().gpu().api() == mediapipe::InferenceCalculatorOptions::Delegate::Gpu::ONNX;
+    if (should_use_onnx) {
+      impls.emplace_back("Onnx");
+    } else if (should_use_gpu) {
       impls.emplace_back("Metal");
       impls.emplace_back("Gl");
+      impls.emplace_back("Cpu");
+    } else {
+      impls.emplace_back("Cpu");
     }
-    impls.emplace_back("Cpu");
     for (const auto& suffix : impls) {
       const auto impl = absl::StrCat("InferenceCalculator", suffix);
       if (!mediapipe::CalculatorBaseRegistry::IsRegistered(impl)) continue;

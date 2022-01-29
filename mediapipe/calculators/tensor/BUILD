@@ -97,6 +97,16 @@ cc_library(
 )
 
 cc_library(
+    name = "inference_calculator_onnx",
+    srcs = ["inference_calculator_onnx.cc"],
+    deps = [
+        "inference_calculator_interface",
+        "//third_party:onnxruntime"
+    ],
+    alwayslink = 1,
+)
+
+cc_library(
     name = "inference_calculator_metal",
     srcs = ["inference_calculator_metal.cc"],
     copts = [
@@ -169,6 +179,7 @@ cc_library(
     ] + select({
         "//conditions:default": [":inference_calculator_gl_if_compute_shader_available"],
         "//mediapipe:ios": [":inference_calculator_metal"],
+        "//mediapipe:windows": [":inference_calculator_onnx"]
     }),
     alwayslink = 1,
 )

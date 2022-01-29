@@ -70,6 +70,11 @@ alias(
     visibility = ["//visibility:public"],
 )
 
+alias(
+    name = "onnxruntime",
+    actual = "@windows_ort_dml//:onnxruntime"
+)
+
 load("@rules_foreign_cc//tools/build_defs:cmake.bzl", "cmake_external")
 
 # Note: this determines the order in which the libraries are passed to the
