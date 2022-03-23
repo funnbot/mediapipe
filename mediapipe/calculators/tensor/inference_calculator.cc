@@ -49,9 +49,8 @@ class InferenceCalculatorSelectorImpl
       impls.emplace_back("Metal");
       impls.emplace_back("Gl");
       impls.emplace_back("Cpu");
-    } else {
-      impls.emplace_back("Cpu");
-    }
+    } 
+    impls.emplace_back("Cpu");
     for (const auto& suffix : impls) {
       const auto impl = absl::StrCat("InferenceCalculator", suffix);
       if (!mediapipe::CalculatorBaseRegistry::IsRegistered(impl)) continue;

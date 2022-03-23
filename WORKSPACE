@@ -226,9 +226,18 @@ http_archive(
 
 http_archive(
     name = "windows_ort_dml",
+    sha256 = "82afc4ea2fc0f77a56618e09bbd05e7cc708df4bcd04a034c490f658ebb5b9bb",
     build_file = "@//third_party:ort_dml_windows.BUILD",
     type = "zip",
     url = "https://github.com/microsoft/onnxruntime/releases/download/v1.10.0/Microsoft.ML.OnnxRuntime.DirectML.1.10.0.zip",
+)
+
+http_archive(
+    name = "windows_dml",
+    sha256 = "63cc7491e300bc3d7af7638605eac70889f5eb4617459dad5942696bb8f3c25b",
+    build_file = "@//third_party:dml_windows.BUILD",
+    type = "zip",
+    url = "https://www.nuget.org/api/v2/package/Microsoft.AI.DirectML/1.8.0"
 )
 
 # After OpenCV 3.2.0, the pre-compiled opencv2.framework has google protobuf symbols, which will

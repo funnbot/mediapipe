@@ -24,6 +24,12 @@ cc_binary(
     ],
 )
 
+load("//mediapipe/framework:output_include_tree.bzl", "output_include_tree")
+output_include_tree(
+    name = "pose_tracking_cpu_source",
+    target = "pose_tracking_cpu"
+)
+
 # Linux only
 cc_binary(
     name = "pose_tracking_gpu",

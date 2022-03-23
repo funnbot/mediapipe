@@ -8,6 +8,30 @@ nav_order: 1
 
 --------------------------------------------------------------------------------
 
+## DirectML Fork Build Instructions
+
+### Windows
+Install Bazel 5 and add to path.
+Set `BAZEL_VS` to `path/to/visual studio/BuildTools` in your environment.
+```
+git clone --depth 1 --filter=tree:none https://github.com/funnbot/mediapipe
+cd mediapipe
+# build with OpenGL disabled and windows python fix
+bazel build -c opt \
+    --define MEDIAPIPE_DISABLE_GPU=1 \
+    --action_env PYTHON_BIN_PATH=path/to/python.exe \
+    mediapipe/examples/desktop/pose_tracking:pose_tracking_cpu
+
+# Test pose tracking with dml
+# execute binary from mediapipe root
+# you can omit --input_video_path to use a connected usb camera instead
+bazel-bin/mediapipe/examples/desktop/pose_tracking/pose_tracking_cpu.exe \
+    --calculator_graph_config_file mediapipe/graphs/pose_tracking/pose_tracking_cpu.pbtxt \
+    --input_video_path path/to/some_video.mp4 \
+    --output_video_path path/to/output_video.mp4
+```
+
+
 ## Live ML anywhere
 
 [MediaPipe](https://google.github.io/mediapipe/) offers cross-platform, customizable

@@ -3,12 +3,16 @@
 
 cc_library(
     name = "onnxruntime",
-    srcs = [
-        "runtimes/win-x64/native/onnxruntime.dll",
-        "runtimes/win-x64/native/onnxruntime.lib",
-    ],
     hdrs = glob(["build/native/include/*.h"]),
     includes = ["build/native/include/"],
-    linkstatic = 1,
+    data = ["runtimes/win-x64/native/onnxruntime.pdb"],
+    deps = [":ort_import_shared"],
     visibility = ["//visibility:public"],
+)
+
+cc_import(
+    name = "ort_import_shared",
+    interface_library = "runtimes/win-x64/native/onnxruntime.lib",
+    shared_library = "runtimes/win-x64/native/onnxruntime.dll",
+    hdrs = glob(["build/native/include/*.h"]),
 )

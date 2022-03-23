@@ -70,9 +70,19 @@ alias(
     visibility = ["//visibility:public"],
 )
 
-alias(
+cc_library(
+    name = "directx",
+    linkopts = ["d3d12.lib", "dxgi.lib"],
+)
+
+cc_library(
     name = "onnxruntime",
-    actual = "@windows_ort_dml//:onnxruntime"
+    deps = [
+        "@windows_ort_dml//:onnxruntime",
+        "@windows_dml//:directml",
+        ":directx",
+    ],
+    visibility = ["//visibility:public"],
 )
 
 load("@rules_foreign_cc//tools/build_defs:cmake.bzl", "cmake_external")

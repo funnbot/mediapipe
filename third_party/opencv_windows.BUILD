@@ -25,11 +25,19 @@ cc_library(
     srcs = select({
         ":opt_build": [
             "x64/vc15/lib/opencv_world" + OPENCV_VERSION + ".lib",
-            "x64/vc15/bin/opencv_world" + OPENCV_VERSION + ".dll",
+            "x64/vc15/bin/opencv_world" + OPENCV_VERSION + ".dll"
         ],
         ":dbg_build": [
             "x64/vc15/lib/opencv_world" + OPENCV_VERSION + "d.lib",
             "x64/vc15/bin/opencv_world" + OPENCV_VERSION + "d.dll",
+        ],
+    }),
+    data = select({
+        ":opt_build": [
+            "x64/vc15/bin/opencv_world" + OPENCV_VERSION + ".pdb",
+        ],
+        ":dbg_build": [
+            "x64/vc15/bin/opencv_world" + OPENCV_VERSION + "d.pdb",
         ],
     }),
     hdrs = glob(["include/opencv2/**/*.h*"]),

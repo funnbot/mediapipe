@@ -1,4 +1,6 @@
 # The bazelrc file for MediaPipe OSS.
+startup --windows_enable_symlinks
+startup --output_base=./bazel-root
 
 # Tensorflow needs remote repo
 common --experimental_repo_remote_exec
@@ -17,6 +19,9 @@ build:linux --host_cxxopt=-std=c++17
 build:linux --copt=-w
 
 # windows
+build:windows --define=MEDIAPIPE_DISABLE_GPU=1
+build:windows --action_env=PYTHON_BIN_PATH=C:/Programs/miniconda3/python.exe
+build:windows --enable_runfiles
 build:windows --cxxopt=/std:c++17
 build:windows --host_cxxopt=/std:c++17
 build:windows --copt=/w

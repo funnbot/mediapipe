@@ -30,6 +30,17 @@
 
 namespace mediapipe {
 
+#define WIN_THROW_IF_ERROR(expression) \
+  do { \
+    HRESULT _hresult_status_val_ = (expression); \
+    if (_hresult_status_val_ < 0) { \
+      LOG(ERROR) \
+        << "Error (0x" << std::hex << _hresult_status_val_ \
+        << "): " << #expression; \
+        throw std::runtime_error("Windows error."); \
+    } \
+  } while(0)
+
 // Zero and negative values are not checked here.
 bool IsPowerOfTwo(int v) { return (v & (v - 1)) == 0; }
 
@@ -390,6 +401,13 @@ void Tensor::Move(Tensor* src) {
   src->opengl_buffer_ = GL_INVALID_INDEX;
 #endif  // MEDIAPIPE_OPENGL_ES_VERSION >= MEDIAPIPE_OPENGL_ES_31
 #endif  // MEDIAPIPE_OPENGL_ES_VERSION >= MEDIAPIPE_OPENGL_ES_30
+
+#if MEDIAPIPE_DX_ENABLED
+  dx_device_ = src->dx_device_;
+  src->dx_device_ = nullptr;
+  dx_buffer_ = src->dx_buffer_;
+  src->dx_buffer_ = nullptr;
+#endif
 }
 
 Tensor::Tensor(ElementType element_type, const Shape& shape)
@@ -416,6 +434,17 @@ void Tensor::Invalidate() {
     }
 #endif  // MEDIAPIPE_METAL_ENABLED
     cpu_buffer_ = nullptr;
+
+#if MEDIAPIPE_DX_ENABLED
+    if (dx_buffer_ != nullptr) {
+      dx_buffer_->Release();
+      dx_buffer_ = nullptr;
+    }
+    if (dx_device_ != nullptr) {
+      dx_device_->Release();
+      dx_device_ = nullptr;
+    }
+#endif
 
     // Don't need to wait for the resource to be deleted bacause if will be
     // released on last reference deletion inside the OpenGL driver.
@@ -510,6 +539,17 @@ Tensor::CpuReadView Tensor::GetCpuReadView() const {
         });
       }
 #endif  // MEDIAPIPE_OPENGL_ES_VERSION >= MEDIAPIPE_OPENGL_ES_30
+
+#if MEDIAPIPE_DX_ENABLED
+    if (valid_ & kValidDirectXResource) {
+      void* v_data = nullptr;
+      const D3D12_RANGE range{0, bytes()};
+      WIN_THROW_IF_ERROR(dx_buffer_->Map(0, &range, &v_data));
+      WIN_THROW_IF_ERROR(dx_buffer_->ReadFromSubresource(cpu_buffer_, 0, 0, 0, nullptr));
+      dx_buffer_->Unmap(0, nullptr);
+    }
+#endif
+
     valid_ |= kValidCpu;
   }
   return {cpu_buffer_, std::move(lock)};
@@ -531,5 +571,78 @@ void Tensor::AllocateCpuBuffer() const {
 #endif  // MEDIAPIPE_METAL_ENABLED
   }
 }
+
+#if MEDIAPIPE_DML_ENABLED
+Tensor::DirectXBufferView Tensor::GetDirectXBufferReadView() const {
+  LOG_IF(FATAL, valid_ == kValidNone)
+      << "Tensor must be written prior to read from.";
+  LOG_IF(FATAL, !(valid_ & (kValidCpu | kValidDirectXResource)))
+      << "Tensor conversion between different GPU resources is not supported "
+         "yet.";
+  auto lock(absl::make_unique<absl::MutexLock>(&view_mutex_));
+  AllocateDirectXBuffer();
+  if (!(valid_ & kValidDirectXResource)) {
+    // Map from cpu buffer to dx resource
+    void* v_data = nullptr;
+    const D3D12_RANGE range{0, bytes()};
+    WIN_THROW_IF_ERROR(dx_buffer_->Map(0, &range, &v_data));
+    WIN_THROW_IF_ERROR(dx_buffer_->WriteToSubresource(0, nullptr, cpu_buffer_, 0, 0));
+    dx_buffer_->Unmap(0, nullptr);
+    valid_ |= kValidDirectXResource;
+  }
+  return {dx_buffer_, std::move(lock)};
+}
+
+Tensor::DirectMLValueView Tensor::GetDirectMLValueReadView() const {
+  auto lock(absl::make_unique<absl::MutexLock>(&view_mutex_));
+  AllocateDirectXBuffer();
+  valid_ = kValidDirectXResource;
+  return {dx_buffer_, std::move(lock)};
+}
+
+void Tensor::AllocateDirectMLValue() const {
+  if (dx_buffer_) return;
+  D3D12_HEAP_PROPERTIES heapProps = {
+    D3D12_HEAP_TYPE_DEFAULT,
+    D3D12_CPU_PAGE_PROPERTY_UNKNOWN,
+    D3D12_MEMORY_POOL_UNKNOWN,
+    0,
+    0
+  };
+
+  D3D12_RESOURCE_DESC1 resourceDesc = {
+    D3D12_RESOURCE_DIMENSION_BUFFER,
+    0,
+    bytes(),
+    1,
+    1,
+    1,
+    DXGI_FORMAT_UNKNOWN,
+    {1, 0},
+    D3D12_TEXTURE_LAYOUT_ROW_MAJOR,
+    D3D12_RESOURCE_FLAG_ALLOW_UNORDERED_ACCESS,
+    {0, 0, 0},
+  };
+
+  IDXGIFactory7* dxgi_factory;
+  WIN_THROW_IF_ERROR(CreateDXGIFactory2(0, IID_PPV_ARGS(&dxgi_factory)));
+
+  IDXGIAdapter4* adapter;
+  WIN_THROW_IF_ERROR(dxgi_factory->EnumAdapters1(0, (IDXGIAdapter1**)&adapter));
+
+  WIN_THROW_IF_ERROR(D3D12CreateDevice(adapter, D3D_FEATURE_LEVEL_11_0, IID_PPV_ARGS(&dx_device_)));
+  
+  WIN_THROW_IF_ERROR(dx_device_->CreateCommittedResource2(
+    &heapProps,
+    D3D12_HEAP_FLAG_NONE,
+    &resourceDesc,
+    D3D12_RESOURCE_STATE_COMMON,
+    nullptr,
+    nullptr,
+    IID_PPV_ARGS(&dx_buffer_)));
+
+  
+}
+#endif
 
 }  // namespace mediapipe

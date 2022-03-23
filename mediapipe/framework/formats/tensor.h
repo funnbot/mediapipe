@@ -35,6 +35,13 @@
 #include "mediapipe/gpu/gl_context.h"
 #endif  // MEDIAPIPE_OPENGL_ES_VERSION >= MEDIAPIPE_OPENGL_ES_30
 
+#if MEDIAPIPE_DML_ENABLED && MEDIAPIPE_ONNX_ENABLED
+#include <d3d12.h>
+#include <dxgi1_6.h>
+#include "onnxruntime_cxx_api.h"
+#include "dml_provider_factory.h"
+#endif
+
 namespace mediapipe {
 
 // Tensor is a container of multi-dimensional data that supports sharing the
@@ -205,6 +212,25 @@ class Tensor {
   OpenGlBufferView GetOpenGlBufferWriteView() const;
 #endif  // MEDIAPIPE_OPENGL_ES_VERSION >= MEDIAPIPE_OPENGL_ES_31
 
+#if MEDIAPIPE_DML_ENABLED
+  class DirectMLValueView : public View {
+  public:
+    Ort::Value value() const { return value_; }
+    DirectMLValueView(DirectMLValueView&& src)
+      : View(std::move(src)), value_(src.value_) {
+        src.dx_buffer_ = nullptr;
+      }
+  protected:
+    friend class Tensor;
+    DirectMLValueView(Ort::Value* value, std::unique_ptr<absl::MutexLock>&& lock)
+      : View(std::move(lock)), value_(value) {}
+    Ort::Value* value_ = nullptr;
+  };
+
+  DirectMLValueView GetDirectMLValueReadView() const;
+  DirectMLValueView GetDirectMLValueWriteView() const;
+#endif
+
   const Shape& shape() const { return shape_; }
   ElementType element_type() const { return element_type_; }
   int element_size() const {
@@ -222,13 +248,14 @@ class Tensor {
   bool ready_on_cpu() const { return valid_ & kValidCpu; }
   bool ready_on_gpu() const {
     return valid_ &
-           (kValidMetalBuffer | kValidOpenGlBuffer | kValidOpenGlTexture2d);
+           (kValidMetalBuffer | kValidOpenGlBuffer | kValidOpenGlTexture2d | kValidDirectMLValue);
   }
   bool ready_as_metal_buffer() const { return valid_ & kValidMetalBuffer; }
   bool ready_as_opengl_buffer() const { return valid_ & kValidOpenGlBuffer; }
   bool ready_as_opengl_texture_2d() const {
     return valid_ & kValidOpenGlTexture2d;
   }
+  bool ready_as_directml_value() const { return valid_ & kValidDirectMLValue; }
 
  private:
   void Move(Tensor*);
@@ -244,6 +271,7 @@ class Tensor {
     kValidMetalBuffer = 1 << 1,
     kValidOpenGlBuffer = 1 << 2,
     kValidOpenGlTexture2d = 1 << 3,
+    kValidDirectMLValue = 1 << 4,
   };
   // A list of resource which are currently allocated and synchronized between
   // each-other: valid_ = kValidCpu | kValidMetalBuffer;
@@ -276,6 +304,12 @@ class Tensor {
 #endif  // MEDIAPIPE_OPENGL_ES_VERSION >= MEDIAPIPE_OPENGL_ES_31
   bool NeedsHalfFloatRenderTarget() const;
 #endif  // MEDIAPIPE_OPENGL_ES_VERSION >= MEDIAPIPE_OPENGL_ES_30
+
+#if MEDIAPIPE_DX_ENABLED
+  mutable ID3D12Device8* dx_device_ = nullptr;
+  mutable ID3D12Resource2* dx_buffer_ = nullptr;
+  void AllocateDirectXBuffer() const;
+#endif
 };
 
 }  // namespace mediapipe
